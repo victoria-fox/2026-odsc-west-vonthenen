@@ -48,6 +48,7 @@ class Settings:
     opensearch_index: str
     mem0_url: str
     mem0_api_key: str
+    mem0_openai_model: str
     postgres_host: str
     postgres_port: int
     postgres_user: str
