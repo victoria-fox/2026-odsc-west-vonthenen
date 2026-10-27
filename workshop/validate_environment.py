@@ -158,13 +158,13 @@ def check_tools(_: Settings) -> Result:
                if shutil.which(name) is None]
     if missing:
         raise CheckFailure("Missing host tools: " + ", ".join(missing))
-    command(["podman", "info", "--format", "{{.Host.OS}}"])
-    return Result("PASS", "Host tools found; Podman engine responds.")
+    command(["docker", "info", "--format", "{{.OSType}}"])
+    return Result("PASS", "Host tools found; Docker engine responds.")
 
 
 def check_containers(_: Settings) -> Result:
     output = command([
-        "podman", "container", "inspect", "--format", "{{.Name}} {{.State.Status}}",
+        "docker", "container", "inspect", "--format", "{{.Name}} {{.State.Status}}",
         *CONTAINERS,
     ])
     states = {}

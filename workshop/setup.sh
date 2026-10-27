@@ -71,26 +71,26 @@ function start_mem0() {
     update_env "JWT_SECRET" "$jwt_secret"
 
     # 1. Setup Network and Volumes
-    podman network create mem0_network 2>/dev/null || true
-    podman volume create postgres_db 2>/dev/null || true
+    docker network create mem0_network 2>/dev/null || true
+    docker volume create postgres_db 2>/dev/null || true
 
     # 2. Build Images
-    if [[ "$force_build" == "--force" ]] || ! podman image exists mem0-api 2>/dev/null; then
+    if [[ "$force_build" == "--force" ]] || ! docker image inspect mem0-api >/dev/null 2>/dev/null; then
         echo "Building mem0-api image..."
-        podman build -t mem0-api -f dev.Dockerfile ..
+        docker build -t mem0-api -f dev.Dockerfile ..
     else
         echo "mem0-api image already exists. Skipping build."
     fi
 
-    if [[ "$force_build" == "--force" ]] || ! podman image exists mem0-dashboard 2>/dev/null; then
+    if [[ "$force_build" == "--force" ]] || ! docker image inspect mem0-dashboard >/dev/null 2>/dev/null; then
         echo "Building mem0-dashboard image..."
-        podman build -t mem0-dashboard ./dashboard
+        docker build -t mem0-dashboard ./dashboard
     else
         echo "mem0-dashboard image already exists. Skipping build."
     fi
 
     # 3. Start Postgres 
-    podman run -d --name postgres \
+    docker run -d --name postgres \
         --network mem0_network \
         --shm-size 128mb \
         --env-file .env \
@@ -102,7 +102,7 @@ function start_mem0() {
 
     # 3.5. Wait for Postgres Database Initialization
     echo -n "Waiting for Postgres database to initialize"
-    until podman exec postgres pg_isready -U postgres -q >/dev/null 2>&1; do
+    until docker exec postgres pg_isready -U postgres -q >/dev/null 2>&1; do
         echo -n "."
         sleep 2
     done
@@ -111,7 +111,7 @@ function start_mem0() {
     # 4. Start Mem0 API
     mkdir -p "$PWD/history"
 
-    podman run -d --name mem0 \
+    docker run -d --name mem0 \
         --network mem0_network \
         -w /app \
         --env-file .env \
@@ -130,7 +130,7 @@ function start_mem0() {
         sh -c "rm -rf /app/packages && pip install -q --force-reinstall --no-deps mem0ai && alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
     # 5. Start Mem0 Dashboard
-    podman run -d --name mem0-dashboard \
+    docker run -d --name mem0-dashboard \
         --network mem0_network \
         -e NEXT_PUBLIC_API_URL=http://localhost:8888 \
         -e API_INTERNAL_URL=http://mem0:8000 \
@@ -167,13 +167,13 @@ function opensearch-create {
 
     mkdir -p "${DATA_DIR}" "${SNAPSHOT_DIR}"
 
-    if ! podman network exists "${NETWORK_NAME}"; then
-        podman network create "${NETWORK_NAME}" >/dev/null
+    if ! docker network inspect "${NETWORK_NAME}" >/dev/null 2>&1; then
+        docker network create "${NETWORK_NAME}" >/dev/null
     fi
 
-    podman rm -f "${DASH_CONTAINER}" "${API_CONTAINER}" 2>/dev/null || true
+    docker rm -f "${DASH_CONTAINER}" "${API_CONTAINER}" 2>/dev/null || true
 
-    podman run -d \
+    docker run -d \
         --name "${API_CONTAINER}" \
         --network "${NETWORK_NAME}" \
         -p 9200:9200 -p 9600:9600 \
@@ -185,7 +185,7 @@ function opensearch-create {
         opensearchproject/opensearch:3.5.0  >/dev/null
         # opensearchproject/opensearch:3.2.0  >/dev/null
 
-    podman run -d \
+    docker run -d \
         --name "${DASH_CONTAINER}" \
         --network "${NETWORK_NAME}" \
         -p 5601:5601 \
