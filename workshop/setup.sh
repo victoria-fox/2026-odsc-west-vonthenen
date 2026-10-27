@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 function start_mem0() {
     local force_build="$1"
     local target_tag="v2.2.1"

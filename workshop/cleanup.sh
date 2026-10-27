@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 
 function cleanup_mem0() {
     podman stop mem0-dashboard postgres 2>/dev/null || true
