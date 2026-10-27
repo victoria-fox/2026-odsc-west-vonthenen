@@ -73,6 +73,14 @@ wait_for "OpenSearch" 180 curl -fsS "http://localhost:9200/_cluster/health"
 wait_for "Mem0 API" 180 curl -fsS "http://localhost:8888/auth/setup-status"
 wait_for "Mem0 dashboard" 180 curl -fsS "http://localhost:3000/api/health"
 
+step "Python environment"
+if [ ! -x .venv/bin/python ]; then
+    echo "Creating .venv from requirements.txt"
+    python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt || exit 1
+else
+    echo ".venv found"
+fi
+
 step "Validating environment"
 .venv/bin/python validate_environment.py
 

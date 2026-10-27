@@ -219,5 +219,5 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Mem0 source cloned by workshop/setup.sh
-workshop/mem0/
+# Mem0 source cloned by workshop/0_setup/setup.sh
+workshop/0_setup/mem0/
