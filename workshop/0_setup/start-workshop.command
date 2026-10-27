@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Double-click in Finder to bring up the workshop environment: starts Docker,
-# the five workshop containers, validates, then opens a shell with the venv active.
+# the five workshop containers, validates, then opens a shell with the Python
+# environment active.
 
 cd "$(dirname "$0")" || exit 1
 WORKSHOP_DIR="$PWD"
@@ -74,15 +75,39 @@ wait_for "Mem0 API" 180 curl -fsS "http://localhost:8888/auth/setup-status"
 wait_for "Mem0 dashboard" 180 curl -fsS "http://localhost:3000/api/health"
 
 step "Python environment"
-if [ ! -x .venv/bin/python ]; then
-    echo "Creating .venv from requirements.txt"
-    python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt || exit 1
+# PyTorch publishes no pip wheels for Intel Macs, so there use a conda env with
+# conda-forge's pytorch and pip-install the rest on top. A named env keeps
+# conda out of this repo's path, which contains spaces.
+if [ "$(uname -sm)" = "Darwin x86_64" ]; then
+    CONDA_ENV=odsc-workshop
+    if ! conda run -n "$CONDA_ENV" true >/dev/null 2>&1; then
+        echo "Creating conda env $CONDA_ENV from requirements.txt"
+        if ! { conda create -y -q -n "$CONDA_ENV" -c conda-forge --override-channels python=3.13 'pytorch>=2.7,<3' &&
+               conda run -n "$CONDA_ENV" python -m pip install -q -r requirements.txt; }; then
+            conda env remove -y -q -n "$CONDA_ENV"
+            exit 1
+        fi
+    else
+        echo "conda env $CONDA_ENV found"
+    fi
+    PY="$(conda run -n "$CONDA_ENV" python -c 'import sys; print(sys.executable)')"
+    ACTIVATE="conda activate $CONDA_ENV"
 else
-    echo ".venv found"
+    if [ ! -x .venv/bin/python ]; then
+        echo "Creating .venv from requirements.txt"
+        if ! { python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt; }; then
+            rm -rf .venv
+            exit 1
+        fi
+    else
+        echo ".venv found"
+    fi
+    PY=.venv/bin/python
+    ACTIVATE="source .venv/bin/activate"
 fi
 
 step "Validating environment"
-.venv/bin/python validate_environment.py
+"$PY" validate_environment.py
 
 cat <<EOF
 
@@ -98,6 +123,6 @@ cat > "$rcdir/.zshrc" <<EOF
 ZDOTDIR="\$HOME"
 source "\$HOME/.zshrc"
 cd "$WORKSHOP_DIR"
-source .venv/bin/activate
+$ACTIVATE
 EOF
 ZDOTDIR="$rcdir" exec zsh -i
